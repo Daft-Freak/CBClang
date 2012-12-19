@@ -11,3 +11,11 @@
 *.lai
 *.la
 *.a
+
+*~
+
+*.zip
+*.cbplugin
+*.depend
+*.layout
+*_build_log.html
