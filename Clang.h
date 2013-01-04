@@ -100,12 +100,22 @@ public:
     virtual bool BuildToolBar(wxToolBar* toolBar){ return false; }
 protected:
 
+    class DiagnosticFixIt
+    {
+    public:
+        DiagnosticFixIt() : start(0), end(0){}
+        unsigned int start, end;
+        wxString orig, replace;
+    };
+
     class DiagnosticMessage
     {
     public:
+        DiagnosticMessage() : start(0), end(0){}
         DiagnosticMessage(int start, int end, wxString message) : start(start), end(end), message(message) {}
-        int start, end;
+        unsigned int start, end;
         wxString message;
+        std::vector<DiagnosticFixIt> fixIts;
     };
 
     virtual void OnAttach();

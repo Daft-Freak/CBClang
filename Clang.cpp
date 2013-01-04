@@ -259,6 +259,8 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
                     //check file name
                     if(filename.compare(wxString(clang_getCString(diagFilename), wxConvUTF8)) == 0)
                     {
+                        DiagnosticMessage diagMessage;
+                        diagMessage.message = message;
 
                         Manager::Get()->GetLogManager()->Log(message);
 
@@ -276,14 +278,50 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
                             stc->IndicatorFillRange(startOffset, endOffset - startOffset);
 
-                            messages.push_back(DiagnosticMessage(startOffset, endOffset, message));
+                            diagMessage.start = startOffset;
+                            diagMessage.end = endOffset;
+
                         }
 
+                        //no ranges found
                         if(!numRanges)
                         {
-                            messages.push_back(DiagnosticMessage(offset, offset + 1, message));
+                            diagMessage.start = offset;
+                            diagMessage.end =  offset + 1;
                             stc->IndicatorFillRange(offset, 1);
                         }
+
+                        Manager::Get()->GetLogManager()->Log(wxString::Format(_("Range: %i - %i"), diagMessage.start, diagMessage.end));
+
+                        //fix-its
+                        int numFixIts = clang_getDiagnosticNumFixIts(diag);
+
+                        Manager::Get()->GetLogManager()->Log(wxString::Format(_("%i fix-its"), numFixIts));
+
+                        for(int f = 0; f < numFixIts; f++)
+                        {
+                            DiagnosticFixIt diagFixIt;
+                            CXSourceRange range;
+                            CXString fixIt = clang_getDiagnosticFixIt(diag, f, &range);
+
+                            CXSourceLocation start = clang_getRangeStart(range);
+                            CXSourceLocation end = clang_getRangeEnd(range);
+
+                            //get offsets
+                            clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &diagFixIt.start);
+                            clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &diagFixIt.end);
+
+                            diagFixIt.orig = stc->GetTextRange(diagFixIt.start, diagFixIt.end);
+                            diagFixIt.replace = wxString(clang_getCString(fixIt), wxConvUTF8);
+
+                            clang_disposeString(fixIt);
+
+                            Manager::Get()->GetLogManager()->Log(_("\t Replace \"") + diagFixIt.orig + _("\" with \"") + diagFixIt.replace + _("\""));
+
+                            diagMessage.fixIts.push_back(diagFixIt);
+                        }
+
+                        messages.push_back(diagMessage);
                     }
 
                     clang_disposeString(diagFilename);
