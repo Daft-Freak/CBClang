@@ -7,7 +7,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="default">
-				<Option output="Clang" prefix_auto="0" extension_auto="1" />
+				<Option output="Clang" prefix_auto="1" extension_auto="1" />
 				<Option type="3" />
 				<Option compiler="gcc" />
 				<Option parameters="--no-ipc" />
@@ -28,7 +28,7 @@
 				</Linker>
 				<ExtraCommands>
 					<Add after="zip -j9 Clang.zip manifest.xml" />
-					<Add after="zip -j9 Clang.cbplugin Clang.so Clang.zip" />
+					<Add after="zip -j9 Clang.cbplugin libClang.so Clang.zip" />
 				</ExtraCommands>
 			</Target>
 		</Build>
