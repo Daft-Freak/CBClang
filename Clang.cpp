@@ -264,35 +264,6 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
                         Manager::Get()->GetLogManager()->Log(message);
 
-                        int numRanges = clang_getDiagnosticNumRanges(diag);
-                        for(int r = 0; r < numRanges; r++)
-                        {
-                            CXSourceRange range = clang_getDiagnosticRange(diag, r);
-                            CXSourceLocation start = clang_getRangeStart(range);
-                            CXSourceLocation end = clang_getRangeEnd(range);
-
-                            //get offsets
-                            unsigned int startOffset, endOffset;
-                            clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &startOffset);
-                            clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &endOffset);
-
-                            stc->IndicatorFillRange(startOffset, endOffset - startOffset);
-
-                            diagMessage.start = startOffset;
-                            diagMessage.end = endOffset;
-
-                        }
-
-                        //no ranges found
-                        if(!numRanges)
-                        {
-                            diagMessage.start = offset;
-                            diagMessage.end =  offset + 1;
-                            stc->IndicatorFillRange(offset, 1);
-                        }
-
-                        Manager::Get()->GetLogManager()->Log(wxString::Format(_("Range: %i - %i"), diagMessage.start, diagMessage.end));
-
                         //fix-its
                         int numFixIts = clang_getDiagnosticNumFixIts(diag);
 
@@ -321,7 +292,56 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
                             diagMessage.fixIts.push_back(diagFixIt);
                         }
 
-                        messages.push_back(diagMessage);
+                        //ranges
+                        int numRanges = clang_getDiagnosticNumRanges(diag);
+                        int usedRanges = 0;
+                        for(int r = 0; r < numRanges; r++)
+                        {
+                            CXSourceRange range = clang_getDiagnosticRange(diag, r);
+                            CXSourceLocation start = clang_getRangeStart(range);
+                            CXSourceLocation end = clang_getRangeEnd(range);
+
+                            //get offsets
+                            unsigned int startOffset, endOffset;
+                            CXFile sFile, eFile;
+                            clang_getSpellingLocation(start, &sFile, nullptr, nullptr, &startOffset);
+                            clang_getSpellingLocation(end, &eFile, nullptr, nullptr, &endOffset);
+
+                            CXString sFilename = clang_getFileName(sFile);
+                            CXString eFilename = clang_getFileName(eFile);
+
+                            wxString startFileStr(clang_getCString(sFilename), wxConvUTF8);
+                            wxString endFileStr(clang_getCString(eFilename), wxConvUTF8);
+
+                            clang_disposeString(sFilename);
+                            clang_disposeString(eFilename);
+
+                            //start and end in different files
+                            if(startFileStr.compare(endFileStr) != 0 || startFileStr.compare(filename) != 0 || endFileStr.compare(filename) != 0)
+                            {
+                                continue;
+                            }
+
+                            stc->IndicatorFillRange(startOffset, endOffset - startOffset);
+
+                            diagMessage.start = startOffset;
+                            diagMessage.end = endOffset;
+
+                            Manager::Get()->GetLogManager()->Log(wxString::Format(_("Range: %i - %i"), diagMessage.start, diagMessage.end));
+
+                            messages.push_back(diagMessage);
+                            usedRanges++;
+                        }
+
+                        //no ranges found
+                        if(!usedRanges)
+                        {
+                            diagMessage.start = offset;
+                            diagMessage.end =  offset + 1;
+                            stc->IndicatorFillRange(offset, 1);
+
+                            messages.push_back(diagMessage);
+                        }
                     }
 
                     clang_disposeString(diagFilename);
