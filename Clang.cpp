@@ -15,6 +15,7 @@
 #include "Clang.h"
 
 #define ERROR_INDICATOR 15
+#define WARNING_INDICATOR 16
 
 // Register the plugin with Code::Blocks.
 // We are using an anonymous namespace so we don't litter the global one.
@@ -261,6 +262,17 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
                         Manager::Get()->GetLogManager()->Log(message);
 
+                        //set indicator for severity level
+                        int indicatorId = ERROR_INDICATOR;
+
+                        CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diag);
+
+                        if(severity == CXDiagnostic_Warning)
+                            indicatorId = WARNING_INDICATOR;
+
+                        stc->SetIndicatorCurrent(indicatorId);
+
+
                         //fix-its
                         int numFixIts = clang_getDiagnosticNumFixIts(diag);
 
@@ -392,6 +404,9 @@ void Clang::ParseFile(const wxString &filename)
             messages.clear();
             stc->SetIndicatorCurrent(ERROR_INDICATOR);
             stc->IndicatorClearRange(0, stc->GetLength());
+
+            stc->SetIndicatorCurrent(WARNING_INDICATOR);
+            stc->IndicatorClearRange(0, stc->GetLength());
         }
     }
 
@@ -476,6 +491,11 @@ void Clang::SetupIndicators(cbStyledTextCtrl *stc)
     stc->IndicatorSetForeground(ERROR_INDICATOR, wxColour(255, 0, 0));
     stc->IndicatorSetAlpha(ERROR_INDICATOR, 100);
     stc->IndicatorSetOutlineAlpha(ERROR_INDICATOR, 200);
+
+    stc->IndicatorSetStyle(WARNING_INDICATOR, wxSCI_INDIC_ROUNDBOX);
+    stc->IndicatorSetForeground(WARNING_INDICATOR, wxColour(255, 255, 0));
+    stc->IndicatorSetAlpha(WARNING_INDICATOR, 100);
+    stc->IndicatorSetOutlineAlpha(WARNING_INDICATOR, 200);
 }
 
 void Clang::ClearTranslationUnits()
