@@ -139,12 +139,15 @@ protected:
 
     void SetupIndicators(cbStyledTextCtrl *stc);
 
+    void ClearTranslationUnits();
+
     CXIndex index;
     std::map<wxString, CXTranslationUnit> translationUnits;
 
     std::vector<DiagnosticMessage> messages;
 
     wxString currentFile;
+    wxString prevCommandLine;
 
     ClangThread *thread;
 };

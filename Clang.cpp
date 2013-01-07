@@ -71,14 +71,10 @@ void Clang::OnAttach()
 
 void Clang::OnRelease(bool appShutDown)
 {
-    //Manager::Get()->GetLogManager()->Log( _("Goodbye World!") );
     thread->Stop();
     thread->Delete();
-    for(auto it = translationUnits.begin(); it != translationUnits.end(); ++it)
-    {
-        clang_disposeTranslationUnit(it->second);
-    }
-    translationUnits.clear();
+
+    ClearTranslationUnits();
 
     clang_disposeIndex(index);
 }
@@ -199,6 +195,7 @@ void Clang::OnEditorTooltip(CodeBlocksEvent &event)
 
 void Clang::OnProjectActivated(CodeBlocksEvent &event)
 {
+    Manager::Get()->GetLogManager()->Log(_("Prj activate"));
     cbProject *project = event.GetProject();
     //parse entire project
     for(int i = 0; i < project->GetFilesCount(); i++)
@@ -398,6 +395,17 @@ void Clang::ParseFile(const wxString &filename)
         }
     }
 
+    //get command line
+    wxString commandLine = MakeCommandLine(filename);
+
+    //check for compiler options changing(badly)
+    if(!prevCommandLine.empty() && prevCommandLine.compare(commandLine) != 0)
+    {
+        Manager::Get()->GetLogManager()->Log( _("Compiler options changed"));
+        ClearTranslationUnits();
+    }
+    prevCommandLine = commandLine;
+
     auto unitIt = translationUnits.find(filename);
     if(unitIt != translationUnits.end())
     {
@@ -407,8 +415,6 @@ void Clang::ParseFile(const wxString &filename)
     else
     {
         Manager::Get()->GetLogManager()->Log( _("Adding ") + filename + _(" to parse list"));
-        //get command line
-        wxString commandLine = MakeCommandLine(filename);
 
         //Manager::Get()->GetLogManager()->Log(_("Command line: ") + commandLine);
 
@@ -470,4 +476,13 @@ void Clang::SetupIndicators(cbStyledTextCtrl *stc)
     stc->IndicatorSetForeground(ERROR_INDICATOR, wxColour(255, 0, 0));
     stc->IndicatorSetAlpha(ERROR_INDICATOR, 100);
     stc->IndicatorSetOutlineAlpha(ERROR_INDICATOR, 200);
+}
+
+void Clang::ClearTranslationUnits()
+{
+    for(auto it = translationUnits.begin(); it != translationUnits.end(); ++it)
+    {
+        clang_disposeTranslationUnit(it->second);
+    }
+    translationUnits.clear();
 }
