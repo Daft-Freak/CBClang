@@ -138,6 +138,7 @@ protected:
     wxString MakeCommandLine(const wxString &filename);
 
     void SetupIndicators(cbStyledTextCtrl *stc);
+    void ClearIndicators(cbStyledTextCtrl *stc);
 
     void ClearTranslationUnits();
 

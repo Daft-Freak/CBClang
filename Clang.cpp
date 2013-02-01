@@ -233,10 +233,8 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
             cbStyledTextCtrl *stc = editor->GetControl();
 
             messages.clear();
-            stc->SetIndicatorCurrent(ERROR_INDICATOR);
-            stc->IndicatorClearRange(0, stc->GetLength());
             SetupIndicators(stc);
-
+            ClearIndicators(stc);
 
             //diagnostics
             int numDiagnostics = clang_getNumDiagnostics(unit);
@@ -402,11 +400,7 @@ void Clang::ParseFile(const wxString &filename)
         if(stc)
         {
             messages.clear();
-            stc->SetIndicatorCurrent(ERROR_INDICATOR);
-            stc->IndicatorClearRange(0, stc->GetLength());
-
-            stc->SetIndicatorCurrent(WARNING_INDICATOR);
-            stc->IndicatorClearRange(0, stc->GetLength());
+            ClearIndicators(stc);
         }
     }
 
@@ -496,6 +490,15 @@ void Clang::SetupIndicators(cbStyledTextCtrl *stc)
     stc->IndicatorSetForeground(WARNING_INDICATOR, wxColour(255, 255, 0));
     stc->IndicatorSetAlpha(WARNING_INDICATOR, 100);
     stc->IndicatorSetOutlineAlpha(WARNING_INDICATOR, 200);
+}
+
+void Clang::ClearIndicators(cbStyledTextCtrl *stc)
+{
+    stc->SetIndicatorCurrent(ERROR_INDICATOR);
+    stc->IndicatorClearRange(0, stc->GetLength());
+
+    stc->SetIndicatorCurrent(WARNING_INDICATOR);
+    stc->IndicatorClearRange(0, stc->GetLength());
 }
 
 void Clang::ClearTranslationUnits()
