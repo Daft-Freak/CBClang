@@ -25,6 +25,7 @@
 					<Add option="`pkg-config --libs codeblocks`" />
 					<Add option="`wx-config --libs --version=2.8 --toolkit=gtk2" />
 					<Add option="`" />
+					<Add option="-Wl,-rpath=/usr/lib/llvm-3.3/lib" />
 					<Add library="clang" />
 					<Add directory="/usr/lib/llvm-3.3/lib" />
 				</Linker>
