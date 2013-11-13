@@ -142,6 +142,8 @@ protected:
 
     void ClearTranslationUnits();
 
+    wxString GetSourceFile(const wxString &filePath);
+
     CXIndex index;
     std::map<wxString, CXTranslationUnit> translationUnits;
 

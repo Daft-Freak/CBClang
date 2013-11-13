@@ -213,17 +213,18 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
         return;
 
     CXString name = clang_getTranslationUnitSpelling(unit);
-    wxString filename(clang_getCString(name), wxConvUTF8);
+    wxString filePath(clang_getCString(name), wxConvUTF8);
     clang_disposeString(name);
 
-    if(translationUnits.find(filename) != translationUnits.end() && translationUnits[filename] != unit)
+    if(translationUnits.find(filePath) != translationUnits.end() && translationUnits[filePath] != unit)
     {
-        Manager::Get()->GetLogManager()->Log(filename +  _(" has duplicated"));
+        Manager::Get()->GetLogManager()->Log(filePath +  _(" has duplicated"));
     }
 
-    translationUnits[filename] = unit;
+    translationUnits[filePath] = unit;
 
-    if(filename.compare(currentFile) == 0)
+
+    if(filePath.compare(currentFile) == 0 || filePath.compare(GetSourceFile(currentFile)) == 0)
     {
         //wxMutexLocker lock(thread->GetMutex());
 
@@ -253,7 +254,7 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
                     clang_getSpellingLocation(loc, &file, nullptr, nullptr, &offset);
                     CXString diagFilename = clang_getFileName(file);
                     //check file name
-                    if(filename.compare(wxString(clang_getCString(diagFilename), wxConvUTF8)) == 0)
+                    if(currentFile.compare(wxString(clang_getCString(diagFilename), wxConvUTF8)) == 0)
                     {
                         DiagnosticMessage diagMessage;
                         diagMessage.message = message;
@@ -324,7 +325,7 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
                             clang_disposeString(eFilename);
 
                             //start and end in different files
-                            if(startFileStr.compare(endFileStr) != 0 || startFileStr.compare(filename) != 0 || endFileStr.compare(filename) != 0)
+                            if(startFileStr.compare(endFileStr) != 0 || startFileStr.compare(currentFile) != 0 || endFileStr.compare(currentFile) != 0)
                             {
                                 continue;
                             }
@@ -371,7 +372,7 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
     Manager::Get()->GetLogManager()->Log(stuff);*/
 
-    Manager::Get()->GetLogManager()->Log( _("Parsed ") + filename);
+    Manager::Get()->GetLogManager()->Log( _("Parsed ") + filePath);
 }
 
 void Clang::ParseFile(const wxString &filename)
@@ -379,15 +380,12 @@ void Clang::ParseFile(const wxString &filename)
     if(filename.empty())
         return;
 
-
-
     wxString ext = wxFileName(filename).GetExt().Lower();
 
     if(ext.compare(wxT("cpp")) != 0 && ext.compare(wxT("cxx")) != 0 && ext.compare(wxT("c")) != 0 && ext.compare(wxT("h")) != 0)
     {
         return;
     }
-
 
     cbEditor *editor = Manager::Get()->GetEditorManager()->GetBuiltinActiveEditor();
     cbStyledTextCtrl *stc = nullptr;
@@ -404,8 +402,19 @@ void Clang::ParseFile(const wxString &filename)
         }
     }
 
+    wxString fileToUse = filename;
+
+    //use source file instead if this is a header
+    wxString sourceFile = GetSourceFile(filename);
+
+    if(sourceFile.compare(filename) != 0)
+    {
+        Manager::Get()->GetLogManager()->Log(_("Using source file: ") + sourceFile + _(", instead of: ") + filename);
+        fileToUse = sourceFile;
+    }
+
     //get command line
-    wxString commandLine = MakeCommandLine(filename);
+    wxString commandLine = MakeCommandLine(fileToUse);
 
     //check for compiler options changing(badly)
     if(!prevCommandLine.empty() && prevCommandLine.compare(commandLine) != 0)
@@ -415,19 +424,19 @@ void Clang::ParseFile(const wxString &filename)
     }
     prevCommandLine = commandLine;
 
-    auto unitIt = translationUnits.find(filename);
+    auto unitIt = translationUnits.find(fileToUse);
     if(unitIt != translationUnits.end())
     {
-        Manager::Get()->GetLogManager()->Log( _("Adding ") + filename + _(" to reparse list"));
+        Manager::Get()->GetLogManager()->Log( _("Adding ") + fileToUse + _(" to reparse list"));
         thread->AddFileReparse(unitIt->second);
     }
     else
     {
-        Manager::Get()->GetLogManager()->Log( _("Adding ") + filename + _(" to parse list"));
+        Manager::Get()->GetLogManager()->Log( _("Adding ") + fileToUse + _(" to parse list"));
 
         //Manager::Get()->GetLogManager()->Log(_("Command line: ") + commandLine);
 
-        thread->AddFile(filename, commandLine);
+        thread->AddFile(fileToUse, commandLine);
     }
 }
 
@@ -508,4 +517,29 @@ void Clang::ClearTranslationUnits()
         clang_disposeTranslationUnit(it->second);
     }
     translationUnits.clear();
+}
+
+// check if this file is a header and get the matching source file if it is
+wxString Clang::GetSourceFile(const wxString &filePath)
+{
+    wxFileName filename(filePath);
+    wxString ext = filename.GetExt().Lower();
+
+    std::vector<wxString> sourceExts = {wxT("c"), wxT("cpp"), wxT("cxx")};
+
+    if(ext.compare(wxT("h")) == 0)
+    {
+        for(auto &ext : sourceExts)
+        {
+            filename.SetExt(ext);
+            if(filename.IsFileReadable())
+                return filename.GetFullPath();
+
+            filename.SetExt(ext.Upper());
+            if(filename.IsFileReadable())
+                return filename.GetFullPath();
+        }
+    }
+
+    return filePath;
 }
