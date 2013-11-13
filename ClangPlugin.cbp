@@ -19,12 +19,14 @@
 					<Add option="`wx-config --cflags --version=2.8 --toolkit=gtk2" />
 					<Add option="`" />
 					<Add option="-fPIC" />
+					<Add directory="/usr/lib/llvm-3.3/include" />
 				</Compiler>
 				<Linker>
 					<Add option="`pkg-config --libs codeblocks`" />
 					<Add option="`wx-config --libs --version=2.8 --toolkit=gtk2" />
 					<Add option="`" />
 					<Add library="clang" />
+					<Add directory="/usr/lib/llvm-3.3/lib" />
 				</Linker>
 				<ExtraCommands>
 					<Add after="zip -j9 Clang.zip manifest.xml" />
