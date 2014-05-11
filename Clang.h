@@ -152,6 +152,8 @@ protected:
     wxString currentFile;
     wxString prevCommandLine;
 
+    wxString sysIncludePath;
+
     ClangThread *thread;
 };
 

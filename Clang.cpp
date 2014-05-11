@@ -11,6 +11,7 @@
 #include <cbeditor.h>
 
 #include <wx/tokenzr.h>
+#include <wx/dir.h>
 
 #include "Clang.h"
 
@@ -63,6 +64,51 @@ void Clang::OnAttach()
         SetupIndicators(stc);
     }
 
+    //make sure libclang can actually find it's includes
+    CXUnsavedFile file;
+    file.Filename = "testinc.c";
+    file.Contents = "#include <limits.h>";
+    file.Length = strlen(file.Contents);
+
+    CXTranslationUnit tmp = clang_parseTranslationUnit(index, "testinc.c", nullptr, 0, &file, 1, 0);
+
+    if(clang_getNumDiagnostics(tmp) != 0)
+    {
+        Manager::Get()->GetLogManager()->Log(_("libclang can't find includes, helping it a bit..."));
+
+        if(wxDir::Exists(wxT("/usr/lib/clang/")))
+        {
+            wxDir dir(wxT("/usr/lib/clang/"));
+
+            wxString filename;
+            bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
+            while(cont)
+            {
+                wxString fullDir = wxT("/usr/lib/clang/") + filename + wxT("/include");
+                if(wxDir::Exists(fullDir))
+                {
+                    clang_disposeTranslationUnit(tmp);
+                    const char *args[1] = {(wxT("-I") + fullDir).mb_str()};
+
+                    tmp = clang_parseTranslationUnit(index, "testinc.c", args, 1, &file, 1, 0);
+                    if(clang_getNumDiagnostics(tmp))
+                    {
+                        Manager::Get()->GetLogManager()->Log(_("\tFound ") + fullDir);
+                        sysIncludePath = fullDir;
+                        break;
+                    }
+                }
+                cont = dir.GetNext(&filename);
+            }
+        }
+
+        if(sysIncludePath.empty())
+            Manager::Get()->GetLogManager()->LogWarning(_("\tCouldn't find a system include path for libclang!"));
+    }
+
+    clang_disposeTranslationUnit(tmp);
+
+    //start the thread
     thread = new ClangThread(this);
     thread->SetIndex(index);
     thread->Create();
@@ -496,8 +542,9 @@ wxString Clang::MakeCommandLine(const wxString &filename)
     wxString command = wxT("$options $includes");
     comp->GetCommandGenerator(project)->GenerateCommandLine(command, target, file, UnixFilename(pfd.source_file_absolute_native), objectFile, pfd.object_file_flat, pfd.dep_file);
 
-    //hack
-    command += wxT(" -I/usr/lib/clang/3.4/include");
+    if(!sysIncludePath.empty())
+        command += wxT(" -I") + sysIncludePath;
+
     return command;
 }
 
