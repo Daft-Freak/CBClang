@@ -216,6 +216,8 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
     wxString filePath(clang_getCString(name), wxConvUTF8);
     clang_disposeString(name);
 
+    Manager::Get()->GetLogManager()->Log( _("Parsed ") + filePath);
+
     if(translationUnits.find(filePath) != translationUnits.end() && translationUnits[filePath] != unit)
     {
         Manager::Get()->GetLogManager()->Log(filePath +  _(" has duplicated"));
@@ -239,6 +241,9 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
             //diagnostics
             int numDiagnostics = clang_getNumDiagnostics(unit);
+
+            Manager::Get()->GetLogManager()->Log(wxString::Format(_("%i diagnostics"), numDiagnostics));
+
             for(int i = 0; i < numDiagnostics; i++)
             {
                 CXDiagnostic diag = clang_getDiagnostic(unit, i);
@@ -247,12 +252,12 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
 
                 if(stc)
                 {
-
                     CXSourceLocation loc = clang_getDiagnosticLocation(diag);
                     unsigned int offset;
                     CXFile file;
                     clang_getSpellingLocation(loc, &file, nullptr, nullptr, &offset);
                     CXString diagFilename = clang_getFileName(file);
+
                     //check file name
                     if(currentFile.compare(wxString(clang_getCString(diagFilename), wxConvUTF8)) == 0)
                     {
@@ -351,6 +356,11 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
                             messages.push_back(diagMessage);
                         }
                     }
+                    else
+                    {
+                        wxString tmpFilename = wxString(clang_getCString(diagFilename), wxConvUTF8);
+                        Manager::Get()->GetLogManager()->Log(wxString::Format(_("\t... diag %i(%s) is for %s, not current file (%s)"), i, message.c_str(), tmpFilename.c_str(), currentFile.c_str()));
+                    }
 
                     clang_disposeString(diagFilename);
                 }
@@ -360,6 +370,8 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
             }
         }
     }
+    else
+        Manager::Get()->GetLogManager()->Log(wxString::Format(_("\t... is not current file (%s)"), currentFile.c_str()));
 
     /*CXTUResourceUsage resUsage = clang_getCXTUResourceUsage(unit);
     wxString stuff;
@@ -371,8 +383,6 @@ void Clang::OnThreadParsed(wxCommandEvent &event)
     clang_disposeCXTUResourceUsage(resUsage);
 
     Manager::Get()->GetLogManager()->Log(stuff);*/
-
-    Manager::Get()->GetLogManager()->Log( _("Parsed ") + filePath);
 }
 
 void Clang::ParseFile(const wxString &filename)
@@ -485,6 +495,9 @@ wxString Clang::MakeCommandLine(const wxString &filename)
 
     wxString command = wxT("$options $includes");
     comp->GetCommandGenerator(project)->GenerateCommandLine(command, target, file, UnixFilename(pfd.source_file_absolute_native), objectFile, pfd.object_file_flat, pfd.dep_file);
+
+    //hack
+    command += wxT(" -I/usr/lib/clang/3.4/include");
     return command;
 }
 
