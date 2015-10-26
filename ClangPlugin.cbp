@@ -10,7 +10,7 @@
 				<Option output="Clang" prefix_auto="1" extension_auto="1" />
 				<Option type="3" />
 				<Option compiler="gcc" />
-				<Option parameters="--no-ipc" />
+				<Option parameters="--no-ipc -v" />
 				<Option host_application="/usr/bin/codeblocks" />
 				<Option run_host_application_in_terminal="0" />
 				<Compiler>
